@@ -1,0 +1,58 @@
+"""Streamlit dashboard for NDVI time-series outputs."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pandas as pd
+import plotly.express as px
+import rasterio
+import streamlit as st
+
+
+st.set_page_config(page_title="Environmental Time-Series Dashboard", layout="wide")
+
+st.title("Sentinel-2 + Landsat Environmental Monitoring")
+st.caption("Interactive dashboard for monthly NDVI trends and raster previews")
+
+output_dir = Path(st.sidebar.text_input("Output directory", value="outputs"))
+summary_path = output_dir / "monthly_ndvi_summary.csv"
+raster_dir = output_dir / "monthly_ndvi"
+
+if not summary_path.exists():
+    st.warning("Summary CSV not found. Run the pipeline first.")
+    st.stop()
+
+summary_df = pd.read_csv(summary_path)
+summary_df["month"] = pd.to_datetime(summary_df["month"])
+
+col1, col2 = st.columns([2, 1])
+
+with col1:
+    fig = px.line(
+        summary_df,
+        x="month",
+        y=["mean_ndvi", "median_ndvi", "p10_ndvi", "p90_ndvi"],
+        markers=True,
+        title="Monthly NDVI Statistics",
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+with col2:
+    st.subheader("Quick stats")
+    st.metric("Mean NDVI (overall)", f"{summary_df['mean_ndvi'].mean():.3f}")
+    st.metric("Min monthly NDVI", f"{summary_df['mean_ndvi'].min():.3f}")
+    st.metric("Max monthly NDVI", f"{summary_df['mean_ndvi'].max():.3f}")
+
+st.subheader("Monthly raster preview")
+raster_candidates = sorted(raster_dir.glob("*.tif"))
+if not raster_candidates:
+    st.info("No monthly raster files found yet.")
+    st.stop()
+
+selected_raster = st.selectbox("Select raster", raster_candidates, format_func=lambda p: p.name)
+
+with rasterio.open(selected_raster) as src:
+    arr = src.read(1)
+
+st.image(arr, caption=selected_raster.name, clamp=True)
