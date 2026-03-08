@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GeoPulse | Environmental Intelligence Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <style>
+      :root {
+        --bg-0: #050816;
+        --bg-1: #0a1030;
+        --panel: rgba(10, 20, 55, 0.55);
+        --panel-border: rgba(117, 147, 255, 0.26);
+        --text: #e5eeff;
+        --muted: #9db0e0;
+        --accent: #53c8ff;
+        --accent-2: #78ffcb;
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        color: var(--text);
+        font-family: Inter, Segoe UI, system-ui, -apple-system, sans-serif;
+        background:
+          radial-gradient(circle at 20% 0%, #1a2d7d 0%, transparent 35%),
+          radial-gradient(circle at 80% 20%, #11426a 0%, transparent 40%),
+          linear-gradient(140deg, var(--bg-0), var(--bg-1));
+        min-height: 100vh;
+        overflow-x: hidden;
+      }
+
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background-image:
+          linear-gradient(rgba(116, 156, 255, 0.08) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(116, 156, 255, 0.08) 1px, transparent 1px);
+        background-size: 42px 42px;
+        mask-image: radial-gradient(circle at center, black 35%, transparent 82%);
+      }
+
+      .container {
+        width: min(1180px, calc(100% - 32px));
+        margin: 22px auto 30px;
+      }
+
+      .glass {
+        background: var(--panel);
+        backdrop-filter: blur(12px);
+        border: 1px solid var(--panel-border);
+        border-radius: 16px;
+        box-shadow: 0 20px 55px rgba(0, 10, 35, 0.35);
+      }
+
+      .hero {
+        padding: 22px 24px;
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: flex-start;
+      }
+
+      .title {
+        margin: 0;
+        font-size: clamp(1.5rem, 2.8vw, 2.1rem);
+        font-weight: 700;
+        letter-spacing: .02em;
+      }
+
+      .subtitle {
+        margin: 8px 0 0;
+        color: var(--muted);
+        max-width: 740px;
+        line-height: 1.5;
+      }
+
+      .pulse {
+        padding: 8px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(120,255,203,.55);
+        color: #c8ffec;
+        font-size: 12px;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      .kpis {
+        margin-top: 14px;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+      }
+
+      .card { padding: 14px 16px; }
+      .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
+      .value { font-size: 1.7rem; font-weight: 700; margin-top: 8px; }
+      .delta { color: #8ee7ff; font-size: 12px; }
+
+      .grid {
+        margin-top: 14px;
+        display: grid;
+        grid-template-columns: 1.2fr .8fr;
+        gap: 12px;
+      }
+
+      .panel { padding: 14px; }
+      .panel h3 { margin: 2px 0 10px; font-size: 1.05rem; }
+      .plot { width: 100%; min-height: 360px; }
+      .plot-small { min-height: 300px; }
+
+      .controls {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        margin: 8px 0 10px;
+      }
+
+      select {
+        background: rgba(13, 24, 66, 0.95);
+        border: 1px solid rgba(117, 147, 255, 0.45);
+        color: var(--text);
+        border-radius: 8px;
+        padding: 6px 10px;
+      }
+
+      .foot {
+        margin-top: 12px;
+        color: #8ea4d7;
+        font-size: 12px;
+        text-align: right;
+      }
+
+      @media (max-width: 950px) {
+        .kpis { grid-template-columns: repeat(2,1fr); }
+        .grid { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <section class="hero glass">
+        <div>
+          <h1 class="title">GeoPulse Environmental Dashboard</h1>
+          <p class="subtitle">Real-time style portfolio view for multi-sensor vegetation dynamics with temporal analytics and geospatial heat signatures.</p>
+        </div>
+        <div class="pulse">Live Portfolio View</div>
+      </section>
+
+      <section class="kpis">
+        <div class="glass card"><div class="label">Time Coverage</div><div id="kpi-months" class="value">-</div><div class="delta">Monthly observations</div></div>
+        <div class="glass card"><div class="label">Avg NDVI</div><div id="kpi-avg" class="value">-</div><div class="delta">Regional baseline</div></div>
+        <div class="glass card"><div class="label">Peak NDVI</div><div id="kpi-max" class="value">-</div><div class="delta">Highest vegetation vigor</div></div>
+        <div class="glass card"><div class="label">Latest Trend</div><div id="kpi-trend" class="value">-</div><div class="delta">vs prior month</div></div>
+      </section>
+
+      <section class="grid">
+        <div class="glass panel">
+          <h3>Temporal Signal Monitor</h3>
+          <div id="line-chart" class="plot"></div>
+        </div>
+        <div class="glass panel">
+          <h3>Seasonality Matrix</h3>
+          <div id="heatmap" class="plot plot-small"></div>
+        </div>
+      </section>
+
+      <section class="grid">
+        <div class="glass panel">
+          <h3>Time-Series Spatial Map</h3>
+          <div class="controls">
+            <label for="month-select">Month:</label>
+            <select id="month-select"></select>
+          </div>
+          <div id="map-chart" class="plot"></div>
+        </div>
+        <div class="glass panel">
+          <h3>Distribution & Change</h3>
+          <div id="dist-chart" class="plot plot-small"></div>
+        </div>
+      </section>
+
+      <div class="foot">Data source file: <code>site/monthly_ndvi_summary.csv</code> + <code>site/time_series_map.csv</code></div>
+    </div>
+
+    <script>
+      const fmt = (n) => Number.parseFloat(n).toFixed(3);
+
+      Promise.all([
+        fetch('monthly_ndvi_summary.csv').then(r => r.text()),
+        fetch('time_series_map.csv').then(r => r.text())
+      ]).then(([summaryCsv, mapCsv]) => {
+        const summary = Papa.parse(summaryCsv, { header: true, dynamicTyping: true }).data
+          .filter(r => r.month && Number.isFinite(r.mean_ndvi));
+        const mapRows = Papa.parse(mapCsv, { header: true, dynamicTyping: true }).data
+          .filter(r => r.month && Number.isFinite(r.lat) && Number.isFinite(r.lon));
+
+        if (!summary.length) return;
+
+        const months = summary.map(r => r.month);
+        const mean = summary.map(r => r.mean_ndvi);
+        const median = summary.map(r => r.median_ndvi);
+        const p10 = summary.map(r => r.p10_ndvi);
+        const p90 = summary.map(r => r.p90_ndvi);
+
+        const last = mean[mean.length - 1];
+        const prev = mean[Math.max(0, mean.length - 2)];
+        const delta = last - prev;
+
+        document.getElementById('kpi-months').textContent = `${months.length}`;
+        document.getElementById('kpi-avg').textContent = fmt(mean.reduce((a,b) => a+b, 0) / mean.length);
+        document.getElementById('kpi-max').textContent = fmt(Math.max(...mean));
+        document.getElementById('kpi-trend').textContent = `${delta >= 0 ? '+' : ''}${fmt(delta)}`;
+
+        Plotly.newPlot('line-chart', [
+          {x: months, y: mean, mode: 'lines+markers', name: 'Mean NDVI', line: {color: '#53c8ff', width: 3}},
+          {x: months, y: median, mode: 'lines', name: 'Median NDVI', line: {color: '#78ffcb', width: 2}},
+          {x: months, y: p10, mode: 'lines', name: 'P10', line: {color: '#7b8ecf', dash: 'dot'}},
+          {x: months, y: p90, mode: 'lines', name: 'P90', line: {color: '#b0b8ff', dash: 'dot'}}
+        ], {
+          paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+          margin: {t: 10, l: 40, r: 10, b: 40},
+          font: {color: '#e5eeff'},
+          xaxis: {gridcolor: 'rgba(122,142,222,.2)'},
+          yaxis: {gridcolor: 'rgba(122,142,222,.2)', title: 'NDVI'}
+        }, {responsive: true});
+
+        const m = {};
+        summary.forEach(r => {
+          const [yy, mm] = r.month.split('-');
+          if (!m[mm]) m[mm] = {};
+          m[mm][yy] = r.mean_ndvi;
+        });
+        const years = [...new Set(summary.map(r => r.month.slice(0,4)))].sort();
+        const monthNums = ['01','02','03','04','05','06','07','08','09','10','11','12'];
+        const z = monthNums.map(mm => years.map(yy => m[mm]?.[yy] ?? null));
+
+        Plotly.newPlot('heatmap', [{z, x: years, y: monthNums, type: 'heatmap', colorscale: 'Turbo'}], {
+          paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+          margin: {t: 10, l: 45, r: 10, b: 30},
+          font: {color: '#e5eeff'}
+        }, {responsive: true});
+
+        const monthSelect = document.getElementById('month-select');
+        const uniqueMonths = [...new Set(mapRows.map(r => r.month))].sort();
+        uniqueMonths.forEach(mm => {
+          const opt = document.createElement('option');
+          opt.value = mm; opt.textContent = mm;
+          monthSelect.appendChild(opt);
+        });
+        monthSelect.value = uniqueMonths[uniqueMonths.length - 1] || '';
+
+        function renderMap(targetMonth) {
+          const data = mapRows.filter(r => r.month === targetMonth);
+          Plotly.newPlot('map-chart', [{
+            type: 'scattergeo',
+            mode: 'markers',
+            lon: data.map(d => d.lon),
+            lat: data.map(d => d.lat),
+            text: data.map(d => `${d.region}<br>NDVI: ${fmt(d.ndvi)}`),
+            marker: {
+              size: data.map(d => 8 + d.ndvi * 16),
+              color: data.map(d => d.ndvi),
+              colorscale: 'Viridis',
+              cmin: 0,
+              cmax: 1,
+              line: {color: 'rgba(255,255,255,.3)', width: 1},
+              colorbar: {title: 'NDVI', tickcolor: '#e5eeff'}
+            },
+            hovertemplate: '%{text}<extra></extra>'
+          }], {
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            margin: {t: 10, l: 10, r: 10, b: 10},
+            font: {color: '#e5eeff'},
+            geo: {
+              projection: {type: 'equirectangular'},
+              showland: true,
+              landcolor: '#0f1e45',
+              showocean: true,
+              oceancolor: '#070f2e',
+              showcountries: true,
+              countrycolor: 'rgba(128,152,220,.5)',
+              bgcolor: 'rgba(0,0,0,0)'
+            }
+          }, {responsive: true});
+        }
+
+        renderMap(monthSelect.value);
+        monthSelect.addEventListener('change', () => renderMap(monthSelect.value));
+
+        const monthDiff = mean.slice(1).map((v, i) => v - mean[i]);
+        const monthDiffLabel = months.slice(1);
+        Plotly.newPlot('dist-chart', [
+          {type: 'histogram', x: mean, name: 'NDVI distribution', marker: {color: '#53c8ff'}},
+          {type: 'scatter', x: monthDiffLabel, y: monthDiff, yaxis: 'y2', mode: 'lines+markers',
+           name: 'Monthly delta', line: {color: '#78ffcb', width: 2}}
+        ], {
+          paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+          margin: {t: 10, l: 40, r: 40, b: 40}, font: {color: '#e5eeff'},
+          xaxis: {title: 'NDVI / Month', gridcolor: 'rgba(122,142,222,.2)'},
+          yaxis: {title: 'Frequency', gridcolor: 'rgba(122,142,222,.2)'},
+          yaxis2: {title: 'Delta', overlaying: 'y', side: 'right'}
+        }, {responsive: true});
+      }).catch(err => console.error(err));
+    </script>
+  </body>
+</html>
