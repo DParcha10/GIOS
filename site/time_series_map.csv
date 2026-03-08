@@ -1,0 +1,31 @@
+month,region,lat,lon,ndvi
+2023-11,Pacific Northwest,45.5,-122.6,0.48
+2023-11,Great Plains,39.2,-98.3,0.36
+2023-11,Southwest,34.2,-111.7,0.22
+2023-11,Southeast,33.8,-84.4,0.44
+2023-11,Northeast,42.4,-71.1,0.39
+2023-12,Pacific Northwest,45.5,-122.6,0.44
+2023-12,Great Plains,39.2,-98.3,0.31
+2023-12,Southwest,34.2,-111.7,0.19
+2023-12,Southeast,33.8,-84.4,0.38
+2023-12,Northeast,42.4,-71.1,0.33
+2024-01,Pacific Northwest,45.5,-122.6,0.42
+2024-01,Great Plains,39.2,-98.3,0.28
+2024-01,Southwest,34.2,-111.7,0.17
+2024-01,Southeast,33.8,-84.4,0.35
+2024-01,Northeast,42.4,-71.1,0.30
+2024-02,Pacific Northwest,45.5,-122.6,0.46
+2024-02,Great Plains,39.2,-98.3,0.32
+2024-02,Southwest,34.2,-111.7,0.21
+2024-02,Southeast,33.8,-84.4,0.39
+2024-02,Northeast,42.4,-71.1,0.34
+2024-03,Pacific Northwest,45.5,-122.6,0.53
+2024-03,Great Plains,39.2,-98.3,0.41
+2024-03,Southwest,34.2,-111.7,0.28
+2024-03,Southeast,33.8,-84.4,0.47
+2024-03,Northeast,42.4,-71.1,0.43
+2024-04,Pacific Northwest,45.5,-122.6,0.61
+2024-04,Great Plains,39.2,-98.3,0.49
+2024-04,Southwest,34.2,-111.7,0.36
+2024-04,Southeast,33.8,-84.4,0.55
+2024-04,Northeast,42.4,-71.1,0.52
