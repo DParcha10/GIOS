@@ -2,10 +2,6 @@ name: Deploy Portfolio (gh-pages branch)
 
 on:
   workflow_dispatch:
-  push:name: Deploy Portfolio (gh-pages branch)
-
-on:
-  workflow_dispatch:
   push:
     branches: ["main", "master", "work", "develop"]
     paths:
@@ -83,58 +79,6 @@ jobs:
 
           cp -R "${tmp_site_dir}/." .
           rm -rf "${tmp_site_dir}"
-          touch .nojekyll
-          echo "Deployed from ${GITHUB_SHA}" > DEPLOYED_FROM.txt
-
-          git add -A
-
-          if git diff --cached --quiet; then
-            echo "No changes to deploy."
-            exit 0
-          fi
-
-          git commit -m "Deploy portfolio from ${GITHUB_SHA}"
-          git push origin gh-pages --force
-
-    branches: ["main", "master", "work", "develop"]
-    paths:
-      - "site/**"
-      - ".github/workflows/deploy-portfolio.yml"
-      - "README.md"
-      - "docs/SHARE_LINK.md"
-
-permissions:
-  contents: write
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Publish static site to gh-pages
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          GITHUB_SHA: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          git clone --depth 1 "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" repo
-          cd repo
-
-          git fetch origin
-
-          if git show-ref --verify --quiet refs/remotes/origin/gh-pages; then
-            git checkout -B gh-pages origin/gh-pages
-            find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
-          else
-            git checkout --orphan gh-pages
-            find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
-          fi
-
-          cp -R site/. .
           touch .nojekyll
           echo "Deployed from ${GITHUB_SHA}" > DEPLOYED_FROM.txt
 
