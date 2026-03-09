@@ -2,7 +2,100 @@ name: Deploy Portfolio (gh-pages branch)
 
 on:
   workflow_dispatch:
+  push:name: Deploy Portfolio (gh-pages branch)
+
+on:
+  workflow_dispatch:
   push:
+    branches: ["main", "master", "work", "develop"]
+    paths:
+      - "site/**"
+      - "index.html"
+      - "monthly_ndvi_summary.csv"
+      - "time_series_map.csv"
+      - ".github/workflows/deploy-portfolio.yml"
+      - "README.md"
+      - "docs/SHARE_LINK.md"
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish static site to gh-pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git clone --depth 1 "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" repo
+          cd repo
+
+          SOURCE_BRANCH="${GITHUB_REF_NAME:-main}"
+          echo "Workflow source branch: ${SOURCE_BRANCH}"
+
+          git fetch origin "${SOURCE_BRANCH}" --depth 1 || true
+          if git show-ref --verify --quiet "refs/remotes/origin/${SOURCE_BRANCH}"; then
+            git checkout -B source "origin/${SOURCE_BRANCH}"
+          fi
+
+          echo "Repo root contents on source branch:"
+          ls -la
+
+          tmp_site_dir="$(mktemp -d)"
+
+          if [ -d site ]; then
+            echo "Using static assets from site/"
+            cp -R site/. "${tmp_site_dir}/"
+          elif [ -f index.html ]; then
+            echo "site/ missing; using root-level static assets fallback"
+            cp -f index.html "${tmp_site_dir}/"
+            [ -f monthly_ndvi_summary.csv ] && cp -f monthly_ndvi_summary.csv "${tmp_site_dir}/"
+            [ -f time_series_map.csv ] && cp -f time_series_map.csv "${tmp_site_dir}/"
+          else
+            echo "ERROR: No deployable static assets found."
+            echo "Expected either:"
+            echo "  - site/index.html (+ CSV files), or"
+            echo "  - root index.html (+ optional CSV files)."
+            exit 1
+          fi
+
+          echo "Staged deploy files:"
+          ls -la "${tmp_site_dir}" || true
+
+          git fetch origin
+
+          if git show-ref --verify --quiet refs/remotes/origin/gh-pages; then
+            git checkout -B gh-pages origin/gh-pages
+            find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          else
+            git checkout --orphan gh-pages
+            find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          fi
+
+          cp -R "${tmp_site_dir}/." .
+          rm -rf "${tmp_site_dir}"
+          touch .nojekyll
+          echo "Deployed from ${GITHUB_SHA}" > DEPLOYED_FROM.txt
+
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "No changes to deploy."
+            exit 0
+          fi
+
+          git commit -m "Deploy portfolio from ${GITHUB_SHA}"
+          git push origin gh-pages --force
+
     branches: ["main", "master", "work", "develop"]
     paths:
       - "site/**"
